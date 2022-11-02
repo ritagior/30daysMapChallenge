@@ -1,0 +1,84 @@
+---
+title: "Day 1: points"
+format: html
+editor: visual
+---
+
+## Create a map of active volcanos in Europe and west Asia
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+```
+
+Read data on volcanoes from the National Center for Environmental. Information
+
+```{r}
+volcano <- read_tsv("data/volcanoes-2022-11-02_11-25-32_+0000.tsv",
+                    col_names = TRUE)
+#remove missing countries
+volcano <- volcano %>%
+  filter(!is.na(Country)) %>%
+  mutate(value = if_else(`Elevation (m)` > 3000,
+                         "Higher than 3000 m",
+                          if_else(`Elevation (m)` < 0, 
+                                  "Submarine volcanoes",
+                                  "Lower than 3000 m")))
+```
+
+Create map of Europe and west Asia.
+
+```{r}
+Europe_Asia <- ne_countries(scale = 'medium',
+                            type = 'map_units',
+                            returnclass = 'sf',
+                            continent = c("Europe", "Asia"))
+
+```
+
+Plot the map of Europe and west Asia with the ggplot2’s function: {geom_sf}. 
+To this map, I will add the points corresponding to the volcanoes.
+
+```{r}
+gm <- ggplot() +
+  geom_sf(data = Europe_Asia, colour = "#bababa",
+          fill = "#ffffd4",
+          alpha = 0.2) +
+  geom_point(data = volcano,
+             alpha = 0.8,
+             size = 2,
+             aes(x = Longitude,
+                 y = Latitude,
+                 colour = value)) +
+  # gghighlight(`Elevation (m)` > 3000,
+  #             label_key = value) +
+  scale_colour_manual(name = "Elevation",
+                      values = c("#018571",
+                                 "#80cdc1",
+                                 "#a6611a")) +
+  ylim(min(volcano$Latitude) - 5 , max(volcano$Latitude) + 5 ) +
+  xlim(min(volcano$Longitude) - 5 , max(volcano$Longitude) + 5) +
+  theme_void() +
+  #coord_sf(clip = "off") +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, 
+                                  face = "bold",
+                                  family = "Helvetica",
+                                  margin = margin(0, 0, 12, 0))) +
+  ggtitle("Volcanos in the Mediterranean area and West Asia") +
+  labs(caption = "Source: NCEI Volcano Database")
+
+gm
+```
+
+Check the map against colour-blindness.
+```{r, message=FALSE}
+library(colorblindr)
+cvd_grid(gm)
+
+```
+
